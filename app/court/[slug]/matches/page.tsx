@@ -30,7 +30,8 @@ interface Session {
   players: { player_id: number; is_active: boolean; name: string; elo_rating: number }[];
 }
 
-const PAGE_SIZE = 8;
+const TAB_WIDTH = 90; // approximate width of "Game XX" tab + gap
+const ARROW_WIDTH = 44; // page button + gap
 
 export default function CourtMatchesPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -44,8 +45,22 @@ export default function CourtMatchesPage() {
   const [prefillTeams, setPrefillTeams] = useState<{ team1: number[]; team2: number[] } | undefined>(undefined);
   const [teamSize, setTeamSize] = useState(2);
   const [teamSizeInitialized, setTeamSizeInitialized] = useState(false);
-  const [gamePage, setGamePage] = useState(0);
-  const gamePageRef = useRef(false); // tracks whether page was auto-set
+  const [pageSize, setPageSize] = useState(8);
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
+
+  // Measure container to calculate how many tabs fit
+  useEffect(() => {
+    function measure() {
+      if (!tabsContainerRef.current) return;
+      const width = tabsContainerRef.current.offsetWidth;
+      const availableWidth = width - ARROW_WIDTH * 2;
+      const count = Math.max(2, Math.floor(availableWidth / TAB_WIDTH));
+      setPageSize(count);
+    }
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [loading]);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -66,14 +81,7 @@ export default function CourtMatchesPage() {
             const allGames = [...new Set(matchesData.map((m) => m.round_number))].sort((a, b) => a - b);
             setSelectedGame((prev) => {
               if (prev === null) {
-                const latest = Math.max(...allGames);
-                // Auto-set page to show the latest game
-                if (!gamePageRef.current) {
-                  const latestIdx = allGames.indexOf(latest);
-                  setGamePage(Math.floor(latestIdx / PAGE_SIZE));
-                  gamePageRef.current = true;
-                }
-                return latest;
+                return Math.max(...allGames);
               }
               return prev;
             });
@@ -98,8 +106,18 @@ export default function CourtMatchesPage() {
   }, [fetchAll]);
 
   const games = [...new Set(matches.map((m) => m.round_number))].sort((a, b) => a - b);
-  const totalPages = Math.ceil(games.length / PAGE_SIZE);
-  const visibleGames = games.slice(gamePage * PAGE_SIZE, (gamePage + 1) * PAGE_SIZE);
+  const totalPages = Math.ceil(games.length / pageSize);
+  const selectedIdx = selectedGame !== null ? games.indexOf(selectedGame) : games.length - 1;
+  const [gamePage, setGamePage] = useState(0);
+
+  // Keep gamePage in sync with selectedGame
+  useEffect(() => {
+    if (selectedIdx >= 0) {
+      setGamePage(Math.floor(selectedIdx / pageSize));
+    }
+  }, [selectedIdx, pageSize]);
+
+  const visibleGames = games.slice(gamePage * pageSize, (gamePage + 1) * pageSize);
 
   const currentGameMatches = matches.filter((m) => m.round_number === selectedGame);
   const allCurrentGameCompleted = currentGameMatches.length > 0 && currentGameMatches.every((m) => m.status === 'completed');
@@ -147,7 +165,7 @@ export default function CourtMatchesPage() {
         return;
       }
       setSelectedGame(null);
-      gamePageRef.current = false;
+
       await fetchAll();
     } catch {
       setError('Failed to generate matches');
@@ -177,7 +195,7 @@ export default function CourtMatchesPage() {
         }
       }
       setSelectedGame(null);
-      gamePageRef.current = false;
+
       await fetchAll();
     } catch {
       setError('Failed to replay matches');
@@ -223,7 +241,7 @@ export default function CourtMatchesPage() {
 
       {/* Game tabs with pagination */}
       {games.length > 0 && (
-        <div className="game-tabs-container">
+        <div className="game-tabs-container" ref={tabsContainerRef}>
           {totalPages > 1 && (
             <button
               className="game-page-btn"
@@ -366,7 +384,7 @@ export default function CourtMatchesPage() {
             setPrefillTeams(undefined);
             if (!editingMatch) {
               setSelectedGame(null);
-              gamePageRef.current = false;
+        
             }
             fetchAll();
           }}

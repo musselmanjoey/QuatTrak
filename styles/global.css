@@ -268,10 +268,12 @@ h3 { font-size: 20px; font-weight: 600; }
   inset: 0;
   background: rgba(0, 0, 0, 0.7);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   z-index: 200;
   padding: 20px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal {
@@ -281,10 +283,8 @@ h3 { font-size: 20px; font-weight: 600; }
   padding: 24px;
   width: 100%;
   max-width: 480px;
-  max-height: calc(100vh - 40px);
-  max-height: calc(100dvh - 40px);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  margin: auto 0;
+  flex-shrink: 0;
 }
 
 .modal h2 {
@@ -330,6 +330,7 @@ h3 { font-size: 20px; font-weight: 600; }
 .player-tile .name {
   font-size: 16px;
   font-weight: 600;
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -526,17 +527,12 @@ h3 { font-size: 20px; font-weight: 600; }
   display: flex;
   gap: 8px;
   flex: 1;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-
-.game-tabs::-webkit-scrollbar {
-  display: none;
+  overflow: hidden;
 }
 
 .game-tab {
-  padding: 10px 14px;
+  flex: 1;
+  padding: 10px 4px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -547,7 +543,6 @@ h3 { font-size: 20px; font-weight: 600; }
   white-space: nowrap;
   min-height: 48px;
   text-align: center;
-  flex-shrink: 0;
 }
 
 .game-tab.active {
