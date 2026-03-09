@@ -19,7 +19,7 @@ export interface SessionWithCheckedIn extends Session {
 export async function findOrCreateTodaySession(courtId: number): Promise<SessionWithCheckedIn> {
   // Try to find today's session for this court
   let result = await db.query<Session>(
-    `SELECT * FROM sessions WHERE date = CURRENT_DATE AND court_id = $1`,
+    `SELECT id, TO_CHAR(date, 'YYYY-MM-DD') as date, court_id, status FROM sessions WHERE date = CURRENT_DATE AND court_id = $1`,
     [courtId]
   );
 
@@ -28,7 +28,7 @@ export async function findOrCreateTodaySession(courtId: number): Promise<Session
   if (result.rows.length === 0) {
     // Create today's session for this court
     const createResult = await db.query<Session>(
-      `INSERT INTO sessions (date, court_id) VALUES (CURRENT_DATE, $1) RETURNING *`,
+      `INSERT INTO sessions (date, court_id) VALUES (CURRENT_DATE, $1) RETURNING id, TO_CHAR(date, 'YYYY-MM-DD') as date, court_id, status`,
       [courtId]
     );
     session = createResult.rows[0];
