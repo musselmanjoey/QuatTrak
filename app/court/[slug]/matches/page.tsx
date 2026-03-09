@@ -79,6 +79,7 @@ export default function CourtMatchesPage() {
   const rounds = [...new Set(matches.map((m) => m.round_number))].sort((a, b) => a - b);
   const currentRoundMatches = matches.filter((m) => m.round_number === selectedRound);
   const allCurrentRoundCompleted = currentRoundMatches.length > 0 && currentRoundMatches.every((m) => m.status === 'completed');
+  const hasPendingMatches = currentRoundMatches.length > 0 && currentRoundMatches.some((m) => m.status !== 'completed');
 
   async function handleRecordWinner(matchId: number, winningTeam: 1 | 2) {
     setError('');
@@ -120,6 +121,35 @@ export default function CourtMatchesPage() {
     }
   }
 
+  async function handleSameTeams() {
+    if (!session || currentRoundMatches.length === 0) return;
+    setError('');
+    try {
+      for (const match of currentRoundMatches) {
+        const team1 = match.players.filter((p) => p.team === 1).map((p) => p.player_id);
+        const team2 = match.players.filter((p) => p.team === 2).map((p) => p.player_id);
+        const res = await fetch(`/api/sessions/${session.id}/generate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            team_size: team1.length,
+            mode: 'manual',
+            teams: { team1, team2 },
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          setError(data.error || 'Failed to replay matches');
+          return;
+        }
+      }
+      setSelectedRound(null);
+      await fetchAll();
+    } catch {
+      setError('Failed to replay matches');
+    }
+  }
+
   if (loading) {
     return (
       <div className="screen" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -134,11 +164,11 @@ export default function CourtMatchesPage() {
     <div className="screen">
       <div className="section-header mb-4">
         <h1>Matches</h1>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        {hasPendingMatches && (
           <button className="btn btn-secondary btn-sm" onClick={() => setShowManualPicker(true)}>
-            Manual Pick
+            Edit Teams
           </button>
-        </div>
+        )}
       </div>
 
       {error && (
@@ -219,8 +249,8 @@ export default function CourtMatchesPage() {
       )}
 
       {allCurrentRoundCompleted && (
-        <div className="mt-4" style={{ display: 'flex', gap: '12px' }}>
-          <div className="mb-4" style={{ display: 'flex', gap: '8px', flex: 1 }}>
+        <div className="mt-4">
+          <div className="mb-4" style={{ display: 'flex', gap: '8px' }}>
             {[2, 3, 4].map((size) => (
               <button
                 key={size}
@@ -231,9 +261,17 @@ export default function CourtMatchesPage() {
               </button>
             ))}
           </div>
-          <button className="btn btn-primary" onClick={handleGenerateNextRound}>
-            Generate Next Round
-          </button>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleGenerateNextRound}>
+              Auto-Generate
+            </button>
+            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={handleSameTeams}>
+              Same Teams
+            </button>
+            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowManualPicker(true)}>
+              Manual Pick
+            </button>
+          </div>
         </div>
       )}
 
