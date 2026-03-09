@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import ManualTeamPicker from '@/components/matches/ManualTeamPicker';
 
 interface MatchPlayer {
   id: number;
@@ -34,12 +35,8 @@ export default function MatchesPage() {
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  // Manual team picker state
   const [showManualPicker, setShowManualPicker] = useState(false);
   const [teamSize, setTeamSize] = useState(2);
-  const [team1Picks, setTeam1Picks] = useState<number[]>([]);
-  const [team2Picks, setTeam2Picks] = useState<number[]>([]);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -110,58 +107,10 @@ export default function MatchesPage() {
         setError(data.error || 'Failed to generate matches');
         return;
       }
-      setSelectedRound(null); // Reset so it picks the latest
-      await fetchAll();
-    } catch {
-      setError('Failed to generate matches');
-    }
-  }
-
-  async function handleCreateManualMatch() {
-    if (!session || team1Picks.length !== teamSize || team2Picks.length !== teamSize) return;
-    setError('');
-    try {
-      const res = await fetch(`/api/sessions/${session.id}/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          team_size: teamSize,
-          mode: 'manual',
-          teams: { team1: team1Picks, team2: team2Picks },
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || 'Failed to create match');
-        return;
-      }
-      setShowManualPicker(false);
-      setTeam1Picks([]);
-      setTeam2Picks([]);
       setSelectedRound(null);
       await fetchAll();
     } catch {
-      setError('Failed to create match');
-    }
-  }
-
-  function handlePickPlayer(playerId: number) {
-    if (team1Picks.includes(playerId)) {
-      // Move to team 2
-      setTeam1Picks((prev) => prev.filter((id) => id !== playerId));
-      if (team2Picks.length < teamSize) {
-        setTeam2Picks((prev) => [...prev, playerId]);
-      }
-    } else if (team2Picks.includes(playerId)) {
-      // Unassign
-      setTeam2Picks((prev) => prev.filter((id) => id !== playerId));
-    } else {
-      // Assign to team 1 first, then team 2
-      if (team1Picks.length < teamSize) {
-        setTeam1Picks((prev) => [...prev, playerId]);
-      } else if (team2Picks.length < teamSize) {
-        setTeam2Picks((prev) => [...prev, playerId]);
-      }
+      setError('Failed to generate matches');
     }
   }
 
@@ -180,11 +129,7 @@ export default function MatchesPage() {
       <div className="section-header mb-4">
         <h1>Matches</h1>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="btn btn-secondary btn-sm" onClick={() => {
-            setShowManualPicker(true);
-            setTeam1Picks([]);
-            setTeam2Picks([]);
-          }}>
+          <button className="btn btn-secondary btn-sm" onClick={() => setShowManualPicker(true)}>
             Manual Pick
           </button>
         </div>
@@ -289,89 +234,18 @@ export default function MatchesPage() {
         </div>
       )}
 
-      {/* Manual Team Picker Modal */}
-      {showManualPicker && (
-        <div className="modal-overlay" onClick={() => setShowManualPicker(false)}>
-          <div className="modal" style={{ maxWidth: '700px' }} onClick={(e) => e.stopPropagation()}>
-            <h2 className="mb-4">Pick Teams</h2>
-
-            <div className="mb-4" style={{ display: 'flex', gap: '8px' }}>
-              {[2, 3, 4].map((size) => (
-                <button
-                  key={size}
-                  className={`btn btn-sm ${teamSize === size ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => {
-                    setTeamSize(size);
-                    setTeam1Picks([]);
-                    setTeam2Picks([]);
-                  }}
-                >
-                  {size}v{size}
-                </button>
-              ))}
-            </div>
-
-            <p className="text-sm text-muted mb-4">
-              Tap to assign: Team 1 → Team 2 → Unassign
-            </p>
-
-            <div className="available-players">
-              {activePlayers.map((p) => {
-                let tileClass = 'pick-tile';
-                if (team1Picks.includes(p.player_id)) tileClass += ' team1';
-                else if (team2Picks.includes(p.player_id)) tileClass += ' team2';
-
-                return (
-                  <div
-                    key={p.player_id}
-                    className={tileClass}
-                    onClick={() => handlePickPlayer(p.player_id)}
-                  >
-                    {p.name}
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="team-picker">
-              <div className="team-column team1">
-                <div className="team-column-header" style={{ color: 'var(--team1)' }}>
-                  Team 1 ({team1Picks.length}/{teamSize})
-                </div>
-                {team1Picks.map((id) => {
-                  const p = activePlayers.find((p) => p.player_id === id);
-                  return p ? <div key={id} className="team-player">{p.name}</div> : null;
-                })}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <span className="match-vs">VS</span>
-              </div>
-              <div className="team-column team2">
-                <div className="team-column-header" style={{ color: 'var(--team2)' }}>
-                  Team 2 ({team2Picks.length}/{teamSize})
-                </div>
-                {team2Picks.map((id) => {
-                  const p = activePlayers.find((p) => p.player_id === id);
-                  return p ? <div key={id} className="team-player">{p.name}</div> : null;
-                })}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowManualPicker(false)}>
-                Cancel
-              </button>
-              <button
-                className="btn btn-primary"
-                style={{ flex: 1 }}
-                onClick={handleCreateManualMatch}
-                disabled={team1Picks.length !== teamSize || team2Picks.length !== teamSize}
-              >
-                Start Match
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Manual Team Picker */}
+      {showManualPicker && session && (
+        <ManualTeamPicker
+          activePlayers={activePlayers}
+          sessionId={session.id}
+          onClose={() => setShowManualPicker(false)}
+          onCreated={() => {
+            setShowManualPicker(false);
+            setSelectedRound(null);
+            fetchAll();
+          }}
+        />
       )}
     </div>
   );
