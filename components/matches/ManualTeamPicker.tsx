@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 interface ActivePlayer {
   player_id: number;
@@ -24,31 +24,130 @@ interface ManualTeamPickerProps {
   defaultTeamSize?: number;
 }
 
+type DropTarget = 'team1' | 'team2' | null;
+
 export default function ManualTeamPicker({ activePlayers, sessionId, onClose, onCreated, editMatch, defaultTeamSize }: ManualTeamPickerProps) {
   const [teamSize, setTeamSize] = useState(editMatch ? editMatch.team1.length : (defaultTeamSize || 2));
   const [team1Picks, setTeam1Picks] = useState<number[]>(editMatch?.team1 ?? []);
   const [team2Picks, setTeam2Picks] = useState<number[]>(editMatch?.team2 ?? []);
   const [error, setError] = useState('');
+  const [dropTarget, setDropTarget] = useState<DropTarget>(null);
+  const draggedPlayer = useRef<{ id: number; from: 'team1' | 'team2' | 'pool' } | null>(null);
 
-  function handlePickPlayer(playerId: number) {
-    if (team1Picks.includes(playerId)) {
-      setTeam1Picks((prev) => prev.filter((id) => id !== playerId));
-      if (team2Picks.length < teamSize) {
-        setTeam2Picks((prev) => [...prev, playerId]);
-      }
-    } else if (team2Picks.includes(playerId)) {
-      setTeam2Picks((prev) => prev.filter((id) => id !== playerId));
+  const teamsValid = team1Picks.length === teamSize && team2Picks.length === teamSize;
+
+  function getPlayerName(id: number) {
+    return activePlayers.find((p) => p.player_id === id)?.name ?? '?';
+  }
+
+  // Tap an unassigned player — fill team1 first, then team2
+  function handleTapPool(playerId: number) {
+    if (team1Picks.length < teamSize) {
+      setTeam1Picks((prev) => [...prev, playerId]);
     } else {
-      if (team1Picks.length < teamSize) {
-        setTeam1Picks((prev) => [...prev, playerId]);
-      } else if (team2Picks.length < teamSize) {
-        setTeam2Picks((prev) => [...prev, playerId]);
-      }
+      setTeam2Picks((prev) => [...prev, playerId]);
     }
   }
 
+  // Tap a player in a team — remove back to pool
+  function handleTapTeamPlayer(playerId: number, team: 'team1' | 'team2') {
+    if (team === 'team1') {
+      setTeam1Picks((prev) => prev.filter((id) => id !== playerId));
+    } else {
+      setTeam2Picks((prev) => prev.filter((id) => id !== playerId));
+    }
+  }
+
+  // --- Drag & drop (touch + mouse) ---
+  function handleDragStart(playerId: number, from: 'team1' | 'team2' | 'pool') {
+    draggedPlayer.current = { id: playerId, from };
+  }
+
+  function handleDragOver(e: React.DragEvent, target: DropTarget) {
+    e.preventDefault();
+    setDropTarget(target);
+  }
+
+  function handleDragLeave() {
+    setDropTarget(null);
+  }
+
+  function handleDrop(target: 'team1' | 'team2') {
+    setDropTarget(null);
+    const dragged = draggedPlayer.current;
+    if (!dragged) return;
+
+    const { id, from } = dragged;
+    draggedPlayer.current = null;
+
+    if (from === target) return;
+
+    // Remove from source
+    if (from === 'team1') setTeam1Picks((prev) => prev.filter((pid) => pid !== id));
+    else if (from === 'team2') setTeam2Picks((prev) => prev.filter((pid) => pid !== id));
+
+    // Add to target
+    if (target === 'team1') setTeam1Picks((prev) => [...prev, id]);
+    else setTeam2Picks((prev) => [...prev, id]);
+  }
+
+  // Touch drag support
+  const touchState = useRef<{ id: number; from: 'team1' | 'team2' | 'pool'; el: HTMLElement | null }>({ id: 0, from: 'pool', el: null });
+
+  function handleTouchStart(e: React.TouchEvent, playerId: number, from: 'team1' | 'team2' | 'pool') {
+    const touch = e.touches[0];
+    const el = e.currentTarget as HTMLElement;
+    const clone = el.cloneNode(true) as HTMLElement;
+    clone.id = 'drag-ghost';
+    clone.style.position = 'fixed';
+    clone.style.left = `${touch.clientX - 40}px`;
+    clone.style.top = `${touch.clientY - 20}px`;
+    clone.style.opacity = '0.85';
+    clone.style.pointerEvents = 'none';
+    clone.style.zIndex = '9999';
+    clone.style.transform = 'scale(1.05)';
+    document.body.appendChild(clone);
+    touchState.current = { id: playerId, from, el: clone };
+  }
+
+  function handleTouchMove(e: React.TouchEvent) {
+    const ghost = touchState.current.el;
+    if (!ghost) return;
+    const touch = e.touches[0];
+    ghost.style.left = `${touch.clientX - 40}px`;
+    ghost.style.top = `${touch.clientY - 20}px`;
+
+    // Detect which drop zone we're over
+    const dropZones = document.querySelectorAll('[data-drop-zone]');
+    let over: DropTarget = null;
+    dropZones.forEach((zone) => {
+      const rect = zone.getBoundingClientRect();
+      if (touch.clientX >= rect.left && touch.clientX <= rect.right && touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+        over = zone.getAttribute('data-drop-zone') as DropTarget;
+      }
+    });
+    setDropTarget(over);
+  }
+
+  function handleTouchEnd() {
+    const ghost = touchState.current.el;
+    if (ghost) {
+      ghost.remove();
+    }
+    const { id, from } = touchState.current;
+    if (id && dropTarget && from !== dropTarget) {
+      if (from === 'team1') setTeam1Picks((prev) => prev.filter((pid) => pid !== id));
+      else if (from === 'team2') setTeam2Picks((prev) => prev.filter((pid) => pid !== id));
+
+      if (dropTarget === 'team1') setTeam1Picks((prev) => [...prev, id]);
+      else if (dropTarget === 'team2') setTeam2Picks((prev) => [...prev, id]);
+    }
+    touchState.current = { id: 0, from: 'pool', el: null };
+    setDropTarget(null);
+  }
+
   async function handleSubmit() {
-    if (team1Picks.length !== teamSize || team2Picks.length !== teamSize) return;
+    if (!teamsValid) return;
     setError('');
     try {
       let res: Response;
@@ -80,6 +179,16 @@ export default function ManualTeamPicker({ activePlayers, sessionId, onClose, on
     }
   }
 
+  const unassigned = activePlayers.filter(
+    (p) => !team1Picks.includes(p.player_id) && !team2Picks.includes(p.player_id)
+  );
+
+  function countStyle(count: number): React.CSSProperties {
+    if (count === teamSize) return { color: 'var(--success)' };
+    if (count > teamSize) return { color: 'var(--danger)' };
+    return {};
+  }
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" style={{ maxWidth: '700px' }} onClick={(e) => e.stopPropagation()}>
@@ -107,49 +216,95 @@ export default function ManualTeamPicker({ activePlayers, sessionId, onClose, on
           ))}
         </div>
 
-        <p className="text-sm text-muted mb-4">
-          Tap to assign: Team 1 &rarr; Team 2 &rarr; Unassign
-        </p>
-
-        <div className="available-players">
-          {activePlayers.map((p) => {
-            let tileClass = 'pick-tile';
-            if (team1Picks.includes(p.player_id)) tileClass += ' team1';
-            else if (team2Picks.includes(p.player_id)) tileClass += ' team2';
-
-            return (
-              <div
-                key={p.player_id}
-                className={tileClass}
-                onClick={() => handlePickPlayer(p.player_id)}
-              >
-                {p.name}
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="team-picker">
-          <div className="team-column team1">
-            <div className="team-column-header" style={{ color: 'var(--team1)' }}>
-              Team 1 ({team1Picks.length}/{teamSize})
+        {/* Unassigned player pool */}
+        {unassigned.length > 0 && (
+          <>
+            <p className="text-sm text-muted mb-4">
+              Tap to assign. Drag between teams to move.
+            </p>
+            <div className="available-players">
+              {unassigned.map((p) => (
+                <div
+                  key={p.player_id}
+                  className="pick-tile"
+                  draggable
+                  onClick={() => handleTapPool(p.player_id)}
+                  onDragStart={() => handleDragStart(p.player_id, 'pool')}
+                  onTouchStart={(e) => handleTouchStart(e, p.player_id, 'pool')}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                >
+                  {p.name}
+                </div>
+              ))}
             </div>
-            {team1Picks.map((id) => {
-              const p = activePlayers.find((p) => p.player_id === id);
-              return p ? <div key={id} className="team-player">{p.name}</div> : null;
-            })}
+          </>
+        )}
+
+        {/* Team columns */}
+        <div className="team-picker">
+          <div
+            className={`team-column team1 ${dropTarget === 'team1' ? 'drop-hover' : ''}`}
+            data-drop-zone="team1"
+            onDragOver={(e) => handleDragOver(e, 'team1')}
+            onDragLeave={handleDragLeave}
+            onDrop={() => handleDrop('team1')}
+          >
+            <div className="team-column-header" style={{ color: 'var(--team1)' }}>
+              Team 1 (<span style={countStyle(team1Picks.length)}>{team1Picks.length}</span>/{teamSize})
+            </div>
+            {team1Picks.map((id) => (
+              <div
+                key={id}
+                className="pick-tile team1"
+                style={{ marginBottom: '6px', width: '100%', textAlign: 'center' }}
+                draggable
+                onClick={() => handleTapTeamPlayer(id, 'team1')}
+                onDragStart={() => handleDragStart(id, 'team1')}
+                onTouchStart={(e) => handleTouchStart(e, id, 'team1')}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+              >
+                {getPlayerName(id)}
+              </div>
+            ))}
+            {team1Picks.length === 0 && (
+              <p className="text-muted text-sm text-center" style={{ marginTop: '24px' }}>Tap players to add</p>
+            )}
           </div>
+
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <span className="match-vs">VS</span>
           </div>
-          <div className="team-column team2">
+
+          <div
+            className={`team-column team2 ${dropTarget === 'team2' ? 'drop-hover' : ''}`}
+            data-drop-zone="team2"
+            onDragOver={(e) => handleDragOver(e, 'team2')}
+            onDragLeave={handleDragLeave}
+            onDrop={() => handleDrop('team2')}
+          >
             <div className="team-column-header" style={{ color: 'var(--team2)' }}>
-              Team 2 ({team2Picks.length}/{teamSize})
+              Team 2 (<span style={countStyle(team2Picks.length)}>{team2Picks.length}</span>/{teamSize})
             </div>
-            {team2Picks.map((id) => {
-              const p = activePlayers.find((p) => p.player_id === id);
-              return p ? <div key={id} className="team-player">{p.name}</div> : null;
-            })}
+            {team2Picks.map((id) => (
+              <div
+                key={id}
+                className="pick-tile team2"
+                style={{ marginBottom: '6px', width: '100%', textAlign: 'center' }}
+                draggable
+                onClick={() => handleTapTeamPlayer(id, 'team2')}
+                onDragStart={() => handleDragStart(id, 'team2')}
+                onTouchStart={(e) => handleTouchStart(e, id, 'team2')}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+              >
+                {getPlayerName(id)}
+              </div>
+            ))}
+            {team2Picks.length === 0 && (
+              <p className="text-muted text-sm text-center" style={{ marginTop: '24px' }}>Tap players to add</p>
+            )}
           </div>
         </div>
 
@@ -161,7 +316,7 @@ export default function ManualTeamPicker({ activePlayers, sessionId, onClose, on
             className="btn btn-primary"
             style={{ flex: 1 }}
             onClick={handleSubmit}
-            disabled={team1Picks.length !== teamSize || team2Picks.length !== teamSize}
+            disabled={!teamsValid}
           >
             {editMatch ? 'Save Teams' : 'Start Match'}
           </button>

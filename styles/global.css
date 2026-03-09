@@ -583,6 +583,11 @@ h3 { font-size: 20px; font-weight: 600; }
   background: var(--team2-dim);
 }
 
+.team-column.drop-hover {
+  background: var(--surface-2);
+  border-style: solid;
+}
+
 /* Stat boxes for player profile */
 .stat-grid {
   display: grid;
