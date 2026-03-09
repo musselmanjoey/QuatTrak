@@ -494,32 +494,61 @@ h3 { font-size: 20px; font-weight: 600; }
 .text-muted { color: var(--text-secondary); }
 .text-sm { font-size: 14px; }
 
-/* Round tabs */
-.round-tabs {
+/* Game tabs */
+.game-tabs-container {
   display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 8px;
+  align-items: center;
+  gap: 4px;
   margin-bottom: 16px;
 }
 
-.round-tab {
-  padding: 10px 20px;
+.game-tabs {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.game-tab {
+  flex: 1;
+  padding: 10px 8px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-secondary);
   cursor: pointer;
   white-space: nowrap;
   min-height: 48px;
+  text-align: center;
 }
 
-.round-tab.active {
+.game-tab.active {
   background: var(--accent-dim);
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.game-page-btn {
+  width: 36px;
+  height: 48px;
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.game-page-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 
 /* Manual team picker */

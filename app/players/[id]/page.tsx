@@ -109,7 +109,7 @@ export default function PlayerProfilePage() {
                         day: 'numeric',
                       })}
                     </span>
-                    <span className="text-muted text-sm"> &middot; Round {match.round_number}</span>
+                    <span className="text-muted text-sm"> &middot; Game {match.round_number}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {match.won ? (

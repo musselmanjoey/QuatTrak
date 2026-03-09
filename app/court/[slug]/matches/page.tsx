@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import ManualTeamPicker from '@/components/matches/ManualTeamPicker';
 
@@ -30,17 +30,21 @@ interface Session {
   players: { player_id: number; is_active: boolean; name: string; elo_rating: number }[];
 }
 
+const PAGE_SIZE = 8;
+
 export default function CourtMatchesPage() {
   const { slug } = useParams<{ slug: string }>();
   const [session, setSession] = useState<Session | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
-  const [selectedRound, setSelectedRound] = useState<number | null>(null);
+  const [selectedGame, setSelectedGame] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showManualPicker, setShowManualPicker] = useState(false);
   const [editingMatch, setEditingMatch] = useState<{ matchId: number; team1: number[]; team2: number[] } | undefined>(undefined);
   const [teamSize, setTeamSize] = useState(2);
   const [teamSizeInitialized, setTeamSizeInitialized] = useState(false);
+  const [gamePage, setGamePage] = useState(0);
+  const gamePageRef = useRef(false); // tracks whether page was auto-set
 
   const fetchAll = useCallback(async () => {
     try {
@@ -58,9 +62,17 @@ export default function CourtMatchesPage() {
           const matchesData: Match[] = await matchesRes.json();
           setMatches(matchesData);
           if (matchesData.length > 0) {
-            setSelectedRound((prev) => {
+            const allGames = [...new Set(matchesData.map((m) => m.round_number))].sort((a, b) => a - b);
+            setSelectedGame((prev) => {
               if (prev === null) {
-                return Math.max(...matchesData.map((m) => m.round_number));
+                const latest = Math.max(...allGames);
+                // Auto-set page to show the latest game
+                if (!gamePageRef.current) {
+                  const latestIdx = allGames.indexOf(latest);
+                  setGamePage(Math.floor(latestIdx / PAGE_SIZE));
+                  gamePageRef.current = true;
+                }
+                return latest;
               }
               return prev;
             });
@@ -84,10 +96,21 @@ export default function CourtMatchesPage() {
     fetchAll();
   }, [fetchAll]);
 
-  const rounds = [...new Set(matches.map((m) => m.round_number))].sort((a, b) => a - b);
-  const currentRoundMatches = matches.filter((m) => m.round_number === selectedRound);
-  const allCurrentRoundCompleted = currentRoundMatches.length > 0 && currentRoundMatches.every((m) => m.status === 'completed');
-  const hasPendingMatches = currentRoundMatches.length > 0 && currentRoundMatches.some((m) => m.status !== 'completed');
+  const games = [...new Set(matches.map((m) => m.round_number))].sort((a, b) => a - b);
+  const totalPages = Math.ceil(games.length / PAGE_SIZE);
+  const visibleGames = games.slice(gamePage * PAGE_SIZE, (gamePage + 1) * PAGE_SIZE);
+
+  const currentGameMatches = matches.filter((m) => m.round_number === selectedGame);
+  const allCurrentGameCompleted = currentGameMatches.length > 0 && currentGameMatches.every((m) => m.status === 'completed');
+  const hasPendingMatches = currentGameMatches.length > 0 && currentGameMatches.some((m) => m.status !== 'completed');
+
+  function handleSelectGame(game: number) {
+    setSelectedGame(game);
+  }
+
+  function handlePageChange(dir: -1 | 1) {
+    setGamePage((p) => Math.max(0, Math.min(totalPages - 1, p + dir)));
+  }
 
   async function handleRecordWinner(matchId: number, winningTeam: 1 | 2) {
     setError('');
@@ -108,7 +131,7 @@ export default function CourtMatchesPage() {
     }
   }
 
-  async function handleGenerateNextRound() {
+  async function handleGenerateNextGame() {
     if (!session) return;
     setError('');
     try {
@@ -122,7 +145,8 @@ export default function CourtMatchesPage() {
         setError(data.error || 'Failed to generate matches');
         return;
       }
-      setSelectedRound(null);
+      setSelectedGame(null);
+      gamePageRef.current = false;
       await fetchAll();
     } catch {
       setError('Failed to generate matches');
@@ -130,10 +154,10 @@ export default function CourtMatchesPage() {
   }
 
   async function handleSameTeams() {
-    if (!session || currentRoundMatches.length === 0) return;
+    if (!session || currentGameMatches.length === 0) return;
     setError('');
     try {
-      for (const match of currentRoundMatches) {
+      for (const match of currentGameMatches) {
         const team1 = match.players.filter((p) => p.team === 1).map((p) => p.player_id);
         const team2 = match.players.filter((p) => p.team === 2).map((p) => p.player_id);
         const res = await fetch(`/api/sessions/${session.id}/generate`, {
@@ -151,7 +175,8 @@ export default function CourtMatchesPage() {
           return;
         }
       }
-      setSelectedRound(null);
+      setSelectedGame(null);
+      gamePageRef.current = false;
       await fetchAll();
     } catch {
       setError('Failed to replay matches');
@@ -174,7 +199,7 @@ export default function CourtMatchesPage() {
         <h1>Matches</h1>
         {hasPendingMatches && (
           <button className="btn btn-secondary btn-sm" onClick={() => {
-            const pending = currentRoundMatches.find((m) => m.status !== 'completed');
+            const pending = currentGameMatches.find((m) => m.status !== 'completed');
             if (pending) {
               setEditingMatch({
                 matchId: pending.id,
@@ -195,22 +220,43 @@ export default function CourtMatchesPage() {
         </div>
       )}
 
-      {rounds.length > 0 && (
-        <div className="round-tabs">
-          {rounds.map((round) => (
+      {/* Game tabs with pagination */}
+      {games.length > 0 && (
+        <div className="game-tabs-container">
+          {totalPages > 1 && (
             <button
-              key={round}
-              className={`round-tab ${selectedRound === round ? 'active' : ''}`}
-              onClick={() => setSelectedRound(round)}
+              className="game-page-btn"
+              onClick={() => handlePageChange(-1)}
+              disabled={gamePage === 0}
             >
-              Round {round}
+              &lsaquo;
             </button>
-          ))}
+          )}
+          <div className="game-tabs">
+            {visibleGames.map((game) => (
+              <button
+                key={game}
+                className={`game-tab ${selectedGame === game ? 'active' : ''}`}
+                onClick={() => handleSelectGame(game)}
+              >
+                Game {game}
+              </button>
+            ))}
+          </div>
+          {totalPages > 1 && (
+            <button
+              className="game-page-btn"
+              onClick={() => handlePageChange(1)}
+              disabled={gamePage === totalPages - 1}
+            >
+              &rsaquo;
+            </button>
+          )}
         </div>
       )}
 
-      {currentRoundMatches.length > 0 ? (
-        currentRoundMatches.map((match) => {
+      {currentGameMatches.length > 0 ? (
+        currentGameMatches.map((match) => {
           const team1 = match.players.filter((p) => p.team === 1);
           const team2 = match.players.filter((p) => p.team === 2);
           const isCompleted = match.status === 'completed';
@@ -266,7 +312,7 @@ export default function CourtMatchesPage() {
         </div>
       )}
 
-      {allCurrentRoundCompleted && (
+      {allCurrentGameCompleted && (
         <div className="mt-4">
           <div className="mb-4" style={{ display: 'flex', gap: '8px' }}>
             {[2, 3, 4].map((size) => (
@@ -280,7 +326,7 @@ export default function CourtMatchesPage() {
             ))}
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
-            <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleGenerateNextRound}>
+            <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleGenerateNextGame}>
               Auto-Generate
             </button>
             <button className="btn btn-secondary" style={{ flex: 1 }} onClick={handleSameTeams}>
@@ -303,7 +349,10 @@ export default function CourtMatchesPage() {
           onCreated={() => {
             setShowManualPicker(false);
             setEditingMatch(undefined);
-            if (!editingMatch) setSelectedRound(null);
+            if (!editingMatch) {
+              setSelectedGame(null);
+              gamePageRef.current = false;
+            }
             fetchAll();
           }}
         />
