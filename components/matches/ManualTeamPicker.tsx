@@ -107,15 +107,18 @@ export default function ManualTeamPicker({ activePlayers, sessionId, onClose, on
   function handleTouchStart(e: React.TouchEvent, playerId: number, from: 'team1' | 'team2' | 'pool') {
     const touch = e.touches[0];
     const el = e.currentTarget as HTMLElement;
+    const rect = el.getBoundingClientRect();
     const clone = el.cloneNode(true) as HTMLElement;
     clone.id = 'drag-ghost';
     clone.style.position = 'fixed';
-    clone.style.left = `${touch.clientX - 40}px`;
-    clone.style.top = `${touch.clientY - 20}px`;
+    clone.style.width = `${rect.width}px`;
+    clone.style.height = `${rect.height}px`;
+    clone.style.left = `${touch.clientX - rect.width / 2}px`;
+    clone.style.top = `${touch.clientY - rect.height / 2}px`;
     clone.style.opacity = '0.85';
     clone.style.pointerEvents = 'none';
     clone.style.zIndex = '9999';
-    clone.style.transform = 'scale(1.05)';
+    clone.style.boxSizing = 'border-box';
     document.body.appendChild(clone);
     touchState.current = { id: playerId, from, el: clone };
   }
@@ -124,8 +127,10 @@ export default function ManualTeamPicker({ activePlayers, sessionId, onClose, on
     const ghost = touchState.current.el;
     if (!ghost) return;
     const touch = e.touches[0];
-    ghost.style.left = `${touch.clientX - 40}px`;
-    ghost.style.top = `${touch.clientY - 20}px`;
+    const gw = ghost.offsetWidth;
+    const gh = ghost.offsetHeight;
+    ghost.style.left = `${touch.clientX - gw / 2}px`;
+    ghost.style.top = `${touch.clientY - gh / 2}px`;
 
     const dropZones = document.querySelectorAll('[data-drop-zone]');
     let over: DropTarget = null;
