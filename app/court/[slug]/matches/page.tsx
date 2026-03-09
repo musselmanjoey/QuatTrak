@@ -38,6 +38,7 @@ export default function CourtMatchesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showManualPicker, setShowManualPicker] = useState(false);
+  const [editingMatch, setEditingMatch] = useState<{ matchId: number; team1: number[]; team2: number[] } | undefined>(undefined);
   const [teamSize, setTeamSize] = useState(2);
 
   const fetchAll = useCallback(async () => {
@@ -165,7 +166,17 @@ export default function CourtMatchesPage() {
       <div className="section-header mb-4">
         <h1>Matches</h1>
         {hasPendingMatches && (
-          <button className="btn btn-secondary btn-sm" onClick={() => setShowManualPicker(true)}>
+          <button className="btn btn-secondary btn-sm" onClick={() => {
+            const pending = currentRoundMatches.find((m) => m.status !== 'completed');
+            if (pending) {
+              setEditingMatch({
+                matchId: pending.id,
+                team1: pending.players.filter((p) => p.team === 1).map((p) => p.player_id),
+                team2: pending.players.filter((p) => p.team === 2).map((p) => p.player_id),
+              });
+              setShowManualPicker(true);
+            }
+          }}>
             Edit Teams
           </button>
         )}
@@ -268,7 +279,7 @@ export default function CourtMatchesPage() {
             <button className="btn btn-secondary" style={{ flex: 1 }} onClick={handleSameTeams}>
               Same Teams
             </button>
-            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowManualPicker(true)}>
+            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { setEditingMatch(undefined); setShowManualPicker(true); }}>
               Manual Pick
             </button>
           </div>
@@ -279,10 +290,12 @@ export default function CourtMatchesPage() {
         <ManualTeamPicker
           activePlayers={activePlayers}
           sessionId={session.id}
-          onClose={() => setShowManualPicker(false)}
+          editMatch={editingMatch}
+          onClose={() => { setShowManualPicker(false); setEditingMatch(undefined); }}
           onCreated={() => {
             setShowManualPicker(false);
-            setSelectedRound(null);
+            setEditingMatch(undefined);
+            if (!editingMatch) setSelectedRound(null);
             fetchAll();
           }}
         />

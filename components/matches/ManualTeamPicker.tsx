@@ -9,17 +9,24 @@ interface ActivePlayer {
   elo_rating: number;
 }
 
+interface EditMatch {
+  matchId: number;
+  team1: number[];
+  team2: number[];
+}
+
 interface ManualTeamPickerProps {
   activePlayers: ActivePlayer[];
   sessionId: number;
   onClose: () => void;
   onCreated: () => void;
+  editMatch?: EditMatch;
 }
 
-export default function ManualTeamPicker({ activePlayers, sessionId, onClose, onCreated }: ManualTeamPickerProps) {
-  const [teamSize, setTeamSize] = useState(2);
-  const [team1Picks, setTeam1Picks] = useState<number[]>([]);
-  const [team2Picks, setTeam2Picks] = useState<number[]>([]);
+export default function ManualTeamPicker({ activePlayers, sessionId, onClose, onCreated, editMatch }: ManualTeamPickerProps) {
+  const [teamSize, setTeamSize] = useState(editMatch ? editMatch.team1.length : 2);
+  const [team1Picks, setTeam1Picks] = useState<number[]>(editMatch?.team1 ?? []);
+  const [team2Picks, setTeam2Picks] = useState<number[]>(editMatch?.team2 ?? []);
   const [error, setError] = useState('');
 
   function handlePickPlayer(playerId: number) {
@@ -39,34 +46,43 @@ export default function ManualTeamPicker({ activePlayers, sessionId, onClose, on
     }
   }
 
-  async function handleCreateManualMatch() {
+  async function handleSubmit() {
     if (team1Picks.length !== teamSize || team2Picks.length !== teamSize) return;
     setError('');
     try {
-      const res = await fetch(`/api/sessions/${sessionId}/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          team_size: teamSize,
-          mode: 'manual',
-          teams: { team1: team1Picks, team2: team2Picks },
-        }),
-      });
+      let res: Response;
+      if (editMatch) {
+        res = await fetch(`/api/matches/${editMatch.matchId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ team1: team1Picks, team2: team2Picks }),
+        });
+      } else {
+        res = await fetch(`/api/sessions/${sessionId}/generate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            team_size: teamSize,
+            mode: 'manual',
+            teams: { team1: team1Picks, team2: team2Picks },
+          }),
+        });
+      }
       if (!res.ok) {
         const data = await res.json();
-        setError(data.error || 'Failed to create match');
+        setError(data.error || (editMatch ? 'Failed to update teams' : 'Failed to create match'));
         return;
       }
       onCreated();
     } catch {
-      setError('Failed to create match');
+      setError(editMatch ? 'Failed to update teams' : 'Failed to create match');
     }
   }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" style={{ maxWidth: '700px' }} onClick={(e) => e.stopPropagation()}>
-        <h2 className="mb-4">Pick Teams</h2>
+        <h2 className="mb-4">{editMatch ? 'Edit Teams' : 'Pick Teams'}</h2>
 
         {error && (
           <div style={{ background: 'var(--danger-dim)', color: 'var(--danger)', padding: '12px', borderRadius: 'var(--radius-sm)', marginBottom: '16px' }}>
@@ -143,10 +159,10 @@ export default function ManualTeamPicker({ activePlayers, sessionId, onClose, on
           <button
             className="btn btn-primary"
             style={{ flex: 1 }}
-            onClick={handleCreateManualMatch}
+            onClick={handleSubmit}
             disabled={team1Picks.length !== teamSize || team2Picks.length !== teamSize}
           >
-            Start Match
+            {editMatch ? 'Save Teams' : 'Start Match'}
           </button>
         </div>
       </div>

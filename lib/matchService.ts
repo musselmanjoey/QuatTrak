@@ -148,6 +148,62 @@ async function createMatchesFromTeams(
   return createdMatches;
 }
 
+export async function updateMatchTeams(
+  matchId: number,
+  team1: number[],
+  team2: number[]
+): Promise<MatchWithPlayers> {
+  return db.withTransaction(async (client) => {
+    const matchResult = await client.query<Match>(
+      `SELECT * FROM matches WHERE id = $1`,
+      [matchId]
+    );
+    const match = matchResult.rows[0];
+    if (!match) throw new Error('Match not found');
+    if (match.status === 'completed') throw new Error('Can only edit teams on pending matches');
+
+    // Delete existing players
+    await client.query(`DELETE FROM match_players WHERE match_id = $1`, [matchId]);
+
+    // Insert new team 1
+    for (const playerId of team1) {
+      const playerResult = await client.query<{ elo_rating: number }>(
+        `SELECT elo_rating FROM players WHERE id = $1`,
+        [playerId]
+      );
+      await client.query(
+        `INSERT INTO match_players (match_id, player_id, team, elo_before) VALUES ($1, $2, 1, $3)`,
+        [matchId, playerId, playerResult.rows[0].elo_rating]
+      );
+    }
+
+    // Insert new team 2
+    for (const playerId of team2) {
+      const playerResult = await client.query<{ elo_rating: number }>(
+        `SELECT elo_rating FROM players WHERE id = $1`,
+        [playerId]
+      );
+      await client.query(
+        `INSERT INTO match_players (match_id, player_id, team, elo_before) VALUES ($1, $2, 2, $3)`,
+        [matchId, playerId, playerResult.rows[0].elo_rating]
+      );
+    }
+
+    // Return updated match
+    const playersResult = await client.query<{
+      id: number; match_id: number; player_id: number; team: number;
+      elo_before: number; elo_after: number | null; player_name: string;
+    }>(
+      `SELECT mp.*, p.name as player_name
+       FROM match_players mp JOIN players p ON p.id = mp.player_id
+       WHERE mp.match_id = $1 ORDER BY mp.team, p.name`,
+      [matchId]
+    );
+
+    return { ...match, players: playersResult.rows };
+  });
+}
+
 export async function recordMatchResult(
   matchId: number,
   winningTeam: 1 | 2
