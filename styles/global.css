@@ -580,11 +580,33 @@ h3 { font-size: 20px; font-weight: 600; }
   border-bottom: 1px solid var(--border);
 }
 
+.player-pool {
+  background: var(--bg-card);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 4px;
+  min-height: 60px;
+  transition: background 0.15s, border-style 0.15s;
+}
+
+.player-pool.drop-hover {
+  background: var(--surface-2);
+  border-style: solid;
+}
+
+.pool-label {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
 .available-players {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 16px;
 }
 
 .pick-tile {
