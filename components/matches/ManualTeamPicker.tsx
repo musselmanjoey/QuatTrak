@@ -22,14 +22,16 @@ interface ManualTeamPickerProps {
   onCreated: () => void;
   editMatch?: EditMatch;
   defaultTeamSize?: number;
+  prefillTeams?: { team1: number[]; team2: number[] };
 }
 
 type DropTarget = 'team1' | 'team2' | 'pool' | null;
 
-export default function ManualTeamPicker({ activePlayers, sessionId, onClose, onCreated, editMatch, defaultTeamSize }: ManualTeamPickerProps) {
-  const [teamSize, setTeamSize] = useState(editMatch ? editMatch.team1.length : (defaultTeamSize || 2));
-  const [team1Picks, setTeam1Picks] = useState<number[]>(editMatch?.team1 ?? []);
-  const [team2Picks, setTeam2Picks] = useState<number[]>(editMatch?.team2 ?? []);
+export default function ManualTeamPicker({ activePlayers, sessionId, onClose, onCreated, editMatch, defaultTeamSize, prefillTeams }: ManualTeamPickerProps) {
+  const initial = editMatch ?? prefillTeams;
+  const [teamSize, setTeamSize] = useState(initial ? initial.team1.length : (defaultTeamSize || 2));
+  const [team1Picks, setTeam1Picks] = useState<number[]>(initial?.team1 ?? []);
+  const [team2Picks, setTeam2Picks] = useState<number[]>(initial?.team2 ?? []);
   const [error, setError] = useState('');
   const [dropTarget, setDropTarget] = useState<DropTarget>(null);
   const draggedPlayer = useRef<{ id: number; from: 'team1' | 'team2' | 'pool' } | null>(null);

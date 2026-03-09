@@ -41,6 +41,7 @@ export default function CourtMatchesPage() {
   const [error, setError] = useState('');
   const [showManualPicker, setShowManualPicker] = useState(false);
   const [editingMatch, setEditingMatch] = useState<{ matchId: number; team1: number[]; team2: number[] } | undefined>(undefined);
+  const [prefillTeams, setPrefillTeams] = useState<{ team1: number[]; team2: number[] } | undefined>(undefined);
   const [teamSize, setTeamSize] = useState(2);
   const [teamSizeInitialized, setTeamSizeInitialized] = useState(false);
   const [gamePage, setGamePage] = useState(0);
@@ -332,7 +333,19 @@ export default function CourtMatchesPage() {
             <button className="btn btn-secondary" style={{ flex: 1 }} onClick={handleSameTeams}>
               Same Teams
             </button>
-            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { setEditingMatch(undefined); setShowManualPicker(true); }}>
+            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => {
+              setEditingMatch(undefined);
+              if (currentGameMatches.length > 0) {
+                const lastMatch = currentGameMatches[currentGameMatches.length - 1];
+                setPrefillTeams({
+                  team1: lastMatch.players.filter((p) => p.team === 1).map((p) => p.player_id),
+                  team2: lastMatch.players.filter((p) => p.team === 2).map((p) => p.player_id),
+                });
+              } else {
+                setPrefillTeams(undefined);
+              }
+              setShowManualPicker(true);
+            }}>
               Manual Pick
             </button>
           </div>
@@ -344,11 +357,13 @@ export default function CourtMatchesPage() {
           activePlayers={activePlayers}
           sessionId={session.id}
           editMatch={editingMatch}
+          prefillTeams={prefillTeams}
           defaultTeamSize={teamSize}
-          onClose={() => { setShowManualPicker(false); setEditingMatch(undefined); }}
+          onClose={() => { setShowManualPicker(false); setEditingMatch(undefined); setPrefillTeams(undefined); }}
           onCreated={() => {
             setShowManualPicker(false);
             setEditingMatch(undefined);
+            setPrefillTeams(undefined);
             if (!editingMatch) {
               setSelectedGame(null);
               gamePageRef.current = false;
