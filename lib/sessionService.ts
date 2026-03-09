@@ -16,18 +16,20 @@ export interface SessionWithCheckedIn extends Session {
   players: CheckedInPlayer[];
 }
 
-export async function findOrCreateTodaySession(): Promise<SessionWithCheckedIn> {
-  // Try to find today's session
+export async function findOrCreateTodaySession(courtId: number): Promise<SessionWithCheckedIn> {
+  // Try to find today's session for this court
   let result = await db.query<Session>(
-    `SELECT * FROM sessions WHERE date = CURRENT_DATE`
+    `SELECT * FROM sessions WHERE date = CURRENT_DATE AND court_id = $1`,
+    [courtId]
   );
 
   let session: Session;
 
   if (result.rows.length === 0) {
-    // Create today's session
+    // Create today's session for this court
     const createResult = await db.query<Session>(
-      `INSERT INTO sessions (date) VALUES (CURRENT_DATE) RETURNING *`
+      `INSERT INTO sessions (date, court_id) VALUES (CURRENT_DATE, $1) RETURNING *`,
+      [courtId]
     );
     session = createResult.rows[0];
   } else {

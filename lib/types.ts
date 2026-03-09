@@ -1,3 +1,11 @@
+export interface Court {
+  id: number;
+  name: string;
+  slug: string;
+  is_active: boolean;
+  created_at: string;
+}
+
 export interface Player {
   id: number;
   name: string;
@@ -11,6 +19,7 @@ export interface Player {
 export interface Session {
   id: number;
   date: string;
+  court_id: number;
   status: 'active' | 'completed';
   created_at: string;
   updated_at: string;

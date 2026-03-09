@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'next/navigation';
 import ManualTeamPicker from '@/components/matches/ManualTeamPicker';
 
 interface MatchPlayer {
@@ -29,7 +30,8 @@ interface Session {
   players: { player_id: number; is_active: boolean; name: string; elo_rating: number }[];
 }
 
-export default function MatchesPage() {
+export default function CourtMatchesPage() {
+  const { slug } = useParams<{ slug: string }>();
   const [session, setSession] = useState<Session | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
@@ -40,7 +42,11 @@ export default function MatchesPage() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const sessionRes = await fetch('/api/sessions/today');
+      const sessionRes = await fetch(`/api/courts/${slug}/session`);
+      if (!sessionRes.ok) {
+        setError('Court not found');
+        return;
+      }
       const sessionData: Session = await sessionRes.json();
       setSession(sessionData);
 
@@ -64,7 +70,7 @@ export default function MatchesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [slug]);
 
   useEffect(() => {
     fetchAll();
@@ -141,7 +147,6 @@ export default function MatchesPage() {
         </div>
       )}
 
-      {/* Round tabs */}
       {rounds.length > 0 && (
         <div className="round-tabs">
           {rounds.map((round) => (
@@ -156,7 +161,6 @@ export default function MatchesPage() {
         </div>
       )}
 
-      {/* Match cards */}
       {currentRoundMatches.length > 0 ? (
         currentRoundMatches.map((match) => {
           const team1 = match.players.filter((p) => p.team === 1);
@@ -214,7 +218,6 @@ export default function MatchesPage() {
         </div>
       )}
 
-      {/* Generate Next Round button */}
       {allCurrentRoundCompleted && (
         <div className="mt-4" style={{ display: 'flex', gap: '12px' }}>
           <div className="mb-4" style={{ display: 'flex', gap: '8px', flex: 1 }}>
@@ -234,7 +237,6 @@ export default function MatchesPage() {
         </div>
       )}
 
-      {/* Manual Team Picker */}
       {showManualPicker && session && (
         <ManualTeamPicker
           activePlayers={activePlayers}
