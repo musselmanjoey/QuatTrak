@@ -311,7 +311,7 @@ export default function CourtCheckInPage() {
                 Cancel
               </button>
               <button
-                className="btn btn-primary"
+                className="btn btn-secondary"
                 style={{ flex: 1 }}
                 onClick={handleGenerate}
                 disabled={activePlayers.length < teamSize * 2}
