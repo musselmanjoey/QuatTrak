@@ -281,6 +281,10 @@ h3 { font-size: 20px; font-weight: 600; }
   padding: 24px;
   width: 100%;
   max-width: 480px;
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal h2 {
@@ -409,6 +413,10 @@ h3 { font-size: 20px; font-weight: 600; }
   gap: 12px;
 }
 
+.match-actions .btn {
+  flex: 1;
+}
+
 /* Leaderboard */
 .leaderboard-table {
   width: 100%;
@@ -518,12 +526,17 @@ h3 { font-size: 20px; font-weight: 600; }
   display: flex;
   gap: 8px;
   flex: 1;
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.game-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .game-tab {
-  flex: 1;
-  padding: 10px 8px;
+  padding: 10px 14px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -534,6 +547,7 @@ h3 { font-size: 20px; font-weight: 600; }
   white-space: nowrap;
   min-height: 48px;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .game-tab.active {
@@ -567,12 +581,18 @@ h3 { font-size: 20px; font-weight: 600; }
 .team-picker {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  gap: 16px;
+  gap: 12px;
   margin-bottom: 16px;
 }
 
+@media (max-width: 400px) {
+  .team-picker {
+    gap: 6px;
+  }
+}
+
 .team-column {
-  min-height: 200px;
+  min-height: 120px;
   background: var(--bg-card);
   border: 2px dashed var(--border);
   border-radius: var(--radius);
