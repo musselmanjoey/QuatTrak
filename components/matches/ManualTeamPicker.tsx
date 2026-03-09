@@ -313,6 +313,12 @@ export default function ManualTeamPicker({ activePlayers, sessionId, onClose, on
           </div>
         </div>
 
+        {!teamsValid && (team1Picks.length > 0 || team2Picks.length > 0) && (
+          <p style={{ color: 'var(--danger)', textAlign: 'center', marginBottom: '12px', fontSize: '14px', fontWeight: 600 }}>
+            Each team needs exactly {teamSize} player{teamSize !== 1 ? 's' : ''} — Team 1 has {team1Picks.length}, Team 2 has {team2Picks.length}
+          </p>
+        )}
+
         <div style={{ display: 'flex', gap: '12px' }}>
           <button className="btn btn-secondary" style={{ flex: 1 }} onClick={onClose}>
             Cancel

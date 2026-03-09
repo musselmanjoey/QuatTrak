@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
+import ManualTeamPicker from '@/components/matches/ManualTeamPicker';
 
 interface CheckedInPlayer {
   id: number;
@@ -37,6 +38,7 @@ export default function CourtCheckInPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newPlayerName, setNewPlayerName] = useState('');
   const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [showManualPicker, setShowManualPicker] = useState(false);
   const [teamSize, setTeamSize] = useState(2);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -316,9 +318,37 @@ export default function CourtCheckInPage() {
               >
                 Auto-Draft
               </button>
+              <button
+                className="btn btn-secondary"
+                style={{ flex: 1 }}
+                onClick={() => {
+                  setShowGenerateModal(false);
+                  setShowManualPicker(true);
+                }}
+              >
+                Manual Pick
+              </button>
             </div>
           </div>
         </div>
+      )}
+
+      {showManualPicker && session && (
+        <ManualTeamPicker
+          activePlayers={activePlayers.map((p) => ({
+            player_id: p.player_id,
+            is_active: p.is_active,
+            name: p.name,
+            elo_rating: p.elo_rating,
+          }))}
+          sessionId={session.id}
+          defaultTeamSize={teamSize}
+          onClose={() => setShowManualPicker(false)}
+          onCreated={() => {
+            setShowManualPicker(false);
+            window.location.href = `/court/${slug}/matches`;
+          }}
+        />
       )}
     </div>
   );
