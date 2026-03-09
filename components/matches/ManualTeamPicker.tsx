@@ -21,10 +21,11 @@ interface ManualTeamPickerProps {
   onClose: () => void;
   onCreated: () => void;
   editMatch?: EditMatch;
+  defaultTeamSize?: number;
 }
 
-export default function ManualTeamPicker({ activePlayers, sessionId, onClose, onCreated, editMatch }: ManualTeamPickerProps) {
-  const [teamSize, setTeamSize] = useState(editMatch ? editMatch.team1.length : 2);
+export default function ManualTeamPicker({ activePlayers, sessionId, onClose, onCreated, editMatch, defaultTeamSize }: ManualTeamPickerProps) {
+  const [teamSize, setTeamSize] = useState(editMatch ? editMatch.team1.length : (defaultTeamSize || 2));
   const [team1Picks, setTeam1Picks] = useState<number[]>(editMatch?.team1 ?? []);
   const [team2Picks, setTeam2Picks] = useState<number[]>(editMatch?.team2 ?? []);
   const [error, setError] = useState('');

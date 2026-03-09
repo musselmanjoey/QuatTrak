@@ -40,6 +40,7 @@ export default function CourtMatchesPage() {
   const [showManualPicker, setShowManualPicker] = useState(false);
   const [editingMatch, setEditingMatch] = useState<{ matchId: number; team1: number[]; team2: number[] } | undefined>(undefined);
   const [teamSize, setTeamSize] = useState(2);
+  const [teamSizeInitialized, setTeamSizeInitialized] = useState(false);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -63,6 +64,12 @@ export default function CourtMatchesPage() {
               }
               return prev;
             });
+            if (!teamSizeInitialized) {
+              const lastMatch = matchesData[matchesData.length - 1];
+              const lastTeamSize = lastMatch.players.filter((p) => p.team === 1).length;
+              if (lastTeamSize >= 2) setTeamSize(lastTeamSize);
+              setTeamSizeInitialized(true);
+            }
           }
         }
       }
@@ -71,7 +78,7 @@ export default function CourtMatchesPage() {
     } finally {
       setLoading(false);
     }
-  }, [slug]);
+  }, [slug, teamSizeInitialized]);
 
   useEffect(() => {
     fetchAll();
@@ -291,6 +298,7 @@ export default function CourtMatchesPage() {
           activePlayers={activePlayers}
           sessionId={session.id}
           editMatch={editingMatch}
+          defaultTeamSize={teamSize}
           onClose={() => { setShowManualPicker(false); setEditingMatch(undefined); }}
           onCreated={() => {
             setShowManualPicker(false);

@@ -50,6 +50,19 @@ export default function CourtCheckInPage() {
       }
       const data = await res.json();
       setSession(data);
+
+      // Default team size from last match in this session
+      if (data.id) {
+        const matchesRes = await fetch(`/api/matches?session_id=${data.id}`);
+        if (matchesRes.ok) {
+          const matches = await matchesRes.json();
+          if (matches.length > 0) {
+            const lastMatch = matches[matches.length - 1];
+            const lastSize = lastMatch.players.filter((p: { team: number }) => p.team === 1).length;
+            if (lastSize >= 2) setTeamSize(lastSize);
+          }
+        }
+      }
     } catch {
       setError('Failed to load session');
     }
