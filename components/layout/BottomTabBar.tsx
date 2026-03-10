@@ -39,6 +39,12 @@ const courtsIcon = (
   </svg>
 );
 
+const backIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M15 18l-6-6 6-6" />
+  </svg>
+);
+
 const tournamentIcon = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M3 3h7v7H3z" />
@@ -107,6 +113,10 @@ export default function BottomTabBar() {
 
     return (
       <nav className="tab-bar">
+        <Link href="/tournament" className="">
+          {backIcon}
+          Back
+        </Link>
         {tournamentTabs.map((tab) => {
           const isActive = pathname === tab.href || pathname.startsWith(tab.href + '/');
           return (
