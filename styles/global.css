@@ -701,3 +701,22 @@ h3 { font-size: 20px; font-weight: 600; }
 }
 .elo-change.positive { color: var(--success); }
 .elo-change.negative { color: var(--danger); }
+
+/* Tournament status badges */
+.badge-setup {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.badge-completed {
+  background: var(--bg-card);
+  color: var(--text-muted);
+}
+
+/* Next match card — high contrast prominent */
+.next-match-card {
+  background: var(--bg-card);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 20px;
+}
